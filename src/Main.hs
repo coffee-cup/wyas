@@ -8,7 +8,7 @@ import Parser
 
 process :: String -> IO ()
 process line = do
-  let res = readExpr line
+  let res = parseExpr line
   case res of
     Left err -> putStr $ parseErrorPretty err
     Right ex -> print ex

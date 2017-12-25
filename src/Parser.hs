@@ -51,13 +51,48 @@ boolP = do
   char '#'
   (char 't' >> return (Bool True)) <|> (char 'f' >> return (Bool False))
 
-expr :: Parser LispVal
-expr = atomP
+listP :: Parser LispVal
+listP = fmap List $ exprP `sepBy` sc
+
+dottedListP :: Parser LispVal
+dottedListP = do
+  h <- exprP `endBy` sc
+  t <- char '.' >> sc >> exprP
+  return $ DottedList h t
+
+quotedP :: Parser LispVal
+quotedP = do
+  char '\''
+  x <- exprP
+  return $ List [Atom "quote", x]
+
+quasiQuoted :: Parser LispVal
+quasiQuoted = do
+  char '`'
+  x <- exprP
+  return $ List [Atom "quasiquote", x]
+
+unQuoteP :: Parser LispVal
+unQuoteP = do
+  char ','
+  x <- exprP
+  return $ List [Atom "unquote", x]
+
+exprP :: Parser LispVal
+exprP = atomP
    <|> stringP
    <|> try floatP
    <|> try numberP
    <|> try boolP
    <|> try characterP
+   <|> quotedP
+   <|> quasiQuoted
+   <|> unQuoteP
+   <|> do
+      char '('
+      x <- try listP <|> dottedListP
+      char ')'
+      return x
 
 contents :: Parser a -> Parser a
 contents p = do
@@ -66,5 +101,5 @@ contents p = do
   eof
   return r
 
-readExpr :: String -> Either (ParseError Char Void) LispVal
-readExpr = runParser (contents expr) "<stdin>"
+parseExpr :: String -> Either (ParseError Char Void) LispVal
+parseExpr = runParser (contents exprP) "<stdin>"
