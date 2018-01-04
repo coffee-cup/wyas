@@ -10,10 +10,12 @@ import Parser
 import Eval
 import Exception
 
+getAst :: String -> IO (ThrowsException LispVal)
+getAst line = return $ parseExpr line
+
 process :: String -> IO ()
-process line = do
-  ast <-  liftM $ parseExpr line
-  putStrLn ast
+process line =
+  putStrLn $ trapException $ parseExpr line >>= eval
 
 main :: IO ()
 main = runInputT defaultSettings loop

@@ -1,13 +1,13 @@
 module Exception
   ( LispException(..)
   , ThrowsException
+  , trapException
   ) where
 
 import Control.Exception
 import Control.Monad.Trans.Except
 import Data.Void
 import Text.Megaparsec
-import Text.Megaparsec.Error
 
 import Syntax
 

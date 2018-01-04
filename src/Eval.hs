@@ -7,46 +7,51 @@ import Exception
 
 eval :: LispVal -> ThrowsException LispVal
 eval val@(String _) = return val
+eval val@(Atom _) = return val
 eval val@(Number _) = return val
+eval val@(Float _) = return val
 eval val@(Bool _) = return val
+eval val@(Character _) = return val
 eval (List [Atom "quote", val]) = return val
 eval (List (Atom func : args)) = mapM eval args >>= apply func
 
 apply :: String -> [LispVal] -> ThrowsException LispVal
 apply func args = case lookup func primitives of
   Nothing -> throwE $ NotFunction "Unrecognized primitive function args" func
-  Just f  -> return $ f args
+  Just f  -> f args
 
-primitives :: [(String, [LispVal] -> LispVal)]
+primitives :: [(String, [LispVal] -> ThrowsException LispVal)]
 primitives =
-  [ ("+", numericBinop (+))
-  , ("-", numericBinop (-))
-  , ("*", numericBinop (*))
-  , ("/", numericBinop div)
-  , ("mod", numericBinop mod)
-  , ("quotient", numericBinop quot)
-  , ("remainder", numericBinop rem)
+  [ ("+", binaryOp (+))
+  , ("-", binaryOp (-))
+  , ("*", binaryOp (*))
+  , ("/", binaryOp div)
+  , ("mod", binaryOp mod)
+  , ("quotient", binaryOp quot)
+  , ("remainder", binaryOp rem)
   , ("symbol?", unaryOp symbolp)
   , ("number?" , unaryOp numberp)
   , ("bool?", unaryOp boolp)
   , ("list?" , unaryOp listp)
   ]
 
-numericBinop :: (Integer -> Integer -> Integer) -> [LispVal] -> LispVal
-numericBinop op params = Number $ foldl1 op $ map unpackNum params
+binaryOp :: (Integer -> Integer -> Integer) -> [LispVal] -> ThrowsException LispVal
+binaryOp op [] = throwE $ NumArgs 2 []
+binaryOp op singleVal@[_] = throwE $ NumArgs 2 singleVal
+binaryOp op params = (Number . foldl1 op) <$> mapM unpackNum params
 
-unaryOp :: (LispVal -> LispVal) -> [LispVal] -> LispVal
-unaryOp f [v] = f v
+unaryOp :: (LispVal -> LispVal) -> [LispVal] -> ThrowsException LispVal
+unaryOp f [v] = return $ f v
 
-unpackNum :: LispVal -> Integer
-unpackNum (Number n) = n
+unpackNum :: LispVal -> ThrowsException Integer
+unpackNum (Number n) = return n
 unpackNum (String n) =
   let parsed = reads n :: [(Integer, String)] in
     if null parsed
-      then 0
-      else fst $ head parsed
+      then throwE $ TypeMismatch "number" $ String n
+      else return $ fst $ head parsed
 unpackNum (List [n]) = unpackNum n
-unpackNum _ = 0
+unpackNum notNum = throwE $ TypeMismatch "number" notNum
 
 symbolp, numberp, stringp, boolp, listp :: LispVal -> LispVal
 symbolp (Atom _)   = Bool True
