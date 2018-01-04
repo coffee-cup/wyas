@@ -1,5 +1,6 @@
 module Parser where
 
+import Control.Monad.Trans.Except
 import Control.Applicative
 import Data.Void
 import Text.Megaparsec
@@ -7,6 +8,7 @@ import Text.Megaparsec.Char
 import Text.Megaparsec.Expr
 
 import Syntax
+import Exception
 import Lexer
 
 stringP :: Parser LispVal
@@ -101,5 +103,8 @@ contents p = do
   eof
   return r
 
-parseExpr :: String -> Either (ParseError Char Void) LispVal
-parseExpr = runParser (contents exprP) "<stdin>"
+parseExpr :: String -> ThrowsException LispVal
+parseExpr s = case runParser (contents exprP) "<stdin>" s of
+  Left err -> throwE $ ParserE err
+  Right val -> return val
+
