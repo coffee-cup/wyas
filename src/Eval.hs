@@ -16,9 +16,10 @@ eval (List [Atom "quote", val]) = return val
 eval (List (Atom func : args)) = mapM eval args >>= apply func
 
 apply :: String -> [LispVal] -> ThrowsException LispVal
-apply func args = case lookup func primitives of
-  Nothing -> throwE $ NotFunction "Unrecognized primitive function args" func
-  Just f  -> f args
+apply func args =
+  case lookup func primitives of
+    Nothing -> throwE $ NotFunction "Unrecognized primitive function args" func
+    Just f -> f args
 
 primitives :: [(String, [LispVal] -> ThrowsException LispVal)]
 primitives =
@@ -30,9 +31,9 @@ primitives =
   , ("quotient", binaryOp quot)
   , ("remainder", binaryOp rem)
   , ("symbol?", unaryOp symbolp)
-  , ("number?" , unaryOp numberp)
+  , ("number?", unaryOp numberp)
   , ("bool?", unaryOp boolp)
-  , ("list?" , unaryOp listp)
+  , ("list?", unaryOp listp)
   ]
 
 binaryOp :: (Integer -> Integer -> Integer) -> [LispVal] -> ThrowsException LispVal
@@ -46,10 +47,10 @@ unaryOp f [v] = return $ f v
 unpackNum :: LispVal -> ThrowsException Integer
 unpackNum (Number n) = return n
 unpackNum (String n) =
-  let parsed = reads n :: [(Integer, String)] in
-    if null parsed
-      then throwE $ TypeMismatch "number" $ String n
-      else return $ fst $ head parsed
+  let parsed = reads n :: [(Integer, String)]
+  in if null parsed
+       then throwE $ TypeMismatch "number" $ String n
+       else return $ fst $ head parsed
 unpackNum (List [n]) = unpackNum n
 unpackNum notNum = throwE $ TypeMismatch "number" notNum
 

@@ -2,10 +2,8 @@ module Parser where
 
 import Control.Monad.Trans.Except
 import Control.Applicative
-import Data.Void
 import Text.Megaparsec
 import Text.Megaparsec.Char
-import Text.Megaparsec.Expr
 
 import Syntax
 import Exception
@@ -30,7 +28,7 @@ atomP = do
 
 characterP :: Parser LispVal
 characterP = do
-  try $ string "#\\"
+  _ <- try $ string "#\\"
   value <- try (string "newline" <|> string "space")
          <|> do { x <- anyChar; notFollowedBy alphaNumChar ; return [x] }
   return $ Character $ case value of
