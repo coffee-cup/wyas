@@ -18,13 +18,11 @@ eval val@(Float _)              = return val
 eval val@(Bool _)               = return val
 eval val@(Character _)          = return val
 eval (List [Atom "quote", val]) = return val
-eval (List [Atom "if", pred, conseq, alt]) =
-  do result <- eval pred
-     case result of
-       Bool False -> eval alt
-       Bool True  -> eval conseq
-       _          -> throwE $ TypeMismatch "bool" pred
+eval (List ((Atom "if") : args)) = ifE args
+eval (List ((Atom "cond") : args)) = cond args
+eval (List (Atom "case" : args)) = caseE args
 eval (List (Atom func : args))  = mapM eval args >>= apply func
+
 
 apply :: String -> [LispVal] -> ThrowsException LispVal
 apply func args =
@@ -151,6 +149,49 @@ cons [x, List xs]             = return $ List $ x : xs
 cons [x, DottedList xs xlast] = return $ DottedList (x : xs) xlast
 cons [x1, x2]                 = return $ DottedList [x1] x2
 cons badArgsList              = throwE $ NumArgs 2 badArgsList
+
+ifE :: [LispVal] -> ThrowsException LispVal
+ifE [pred, conseq, alt] = do
+  result <- eval pred
+  case result of
+    Bool False -> eval alt
+    Bool True  -> eval conseq
+    _          -> throwE $ TypeMismatch "bool" pred
+ifE notIf = throwE $ NumArgs 3 notIf
+
+cond :: [LispVal] -> ThrowsException LispVal
+cond ((List (Atom "else" : value : [])) : []) = eval value
+cond ((List (condition : value : [])): alts) = do
+  result <- eval condition
+  boolResult <- unpackBool result
+  if boolResult
+    then eval value
+    else cond alts
+cond ((List a) : _) = throwE $ NumArgs 2 a
+cond (a : _) = throwE $ NumArgs 2 [a]
+cond _ = throwE $ Default "Not viable alternative in cond"
+
+caseE :: [LispVal] -> ThrowsException LispVal
+caseE form@(key : clauses) =
+  if null clauses
+  then throwE $ BadSpecialForm "no true clause in case expression: " (List (Atom "case" : form))
+  else case head clauses of
+      List (Atom "else" : exprs) -> mapM eval exprs >>= return . last
+      List ((List datums) : exprs) -> do
+        result <- eval key
+        equality <- mapM (\x -> eqv [result, x]) datums
+        if Bool True `elem` equality
+          then mapM eval exprs >>= return . last
+          else caseE $ key : tail clauses
+      List (pred : exprs) -> do
+        result <- eval key
+        predResult <- eval pred
+        equality <- eqv [result, predResult]
+        if Bool True == equality
+          then mapM eval exprs >>= return . last
+          else caseE $ key : tail clauses
+      _ -> throwE $ BadSpecialForm "ill-formed case expression: " (List (Atom "case" : form))
+caseE form = throwE $ NumArgs 2 form
 
 eqvList :: ([LispVal] -> ThrowsException LispVal) -> [LispVal] -> ThrowsException LispVal
 eqvList eqvFunc [(List arg1), (List arg2)] =
