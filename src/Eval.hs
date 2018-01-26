@@ -62,6 +62,8 @@ primitives =
   , ("eq?", eqv)
   , ("eqv?", eqv)
   , ("equal?", equal)
+  , ("string-length", stringLen)
+  , ("string-ref", stringRef)
   ]
 
 boolBinop :: (LispVal -> ThrowsException a) -> (a -> a -> Bool) -> [LispVal] -> ThrowsException LispVal
@@ -129,6 +131,20 @@ symbol2string (Atom s) = String s
 symbol2string _        = String ""
 string2symbol (String s) = Atom s
 string2symbol _          = Atom ""
+
+stringLen :: [LispVal] -> ThrowsException LispVal
+stringLen [(String s)] = return $ Number $ fromIntegral $ length s
+stringLen [notString] = throwE $ TypeMismatch "string" notString
+stringLen badArgList = throwE $ NumArgs 1 badArgList
+
+stringRef :: [LispVal] -> ThrowsException LispVal
+stringRef [(String s), (Number k)]
+  | length s < k' + 1 = throwE $ Default "Out of bound error"
+  | otherwise = return $ String $ [s !! k']
+  where k' = fromIntegral k
+stringRef [(String s), notNum] = throwE $ TypeMismatch "number" notNum
+stringRef [notString, _] = throwE $ TypeMismatch "string" notString
+stringRef badArgList = throwE $ NumArgs 2 badArgList
 
 car :: [LispVal] -> ThrowsException LispVal
 car [List (x : xs)]         = return x
