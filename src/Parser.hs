@@ -36,6 +36,12 @@ characterP = do
     "newline" -> '\n'
     _         -> head value
 
+negativeNumberP :: Parser LispVal
+negativeNumberP = do
+  char '-'
+  i <- integer
+  return $ Number (-1 * i)
+
 numberP :: Parser LispVal
 numberP = do
   i <- try integer <|> try hexadecimal <|> try octal
@@ -82,6 +88,7 @@ exprP :: Parser LispVal
 exprP = atomP
    <|> stringP
    <|> try floatP
+   <|> try negativeNumberP
    <|> try numberP
    <|> try boolP
    <|> try characterP

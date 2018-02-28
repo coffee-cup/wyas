@@ -6,6 +6,7 @@ module Exception
 
 import Control.Exception
 import Control.Monad.Trans.Except
+
 import Data.Void
 import Text.Megaparsec
 
