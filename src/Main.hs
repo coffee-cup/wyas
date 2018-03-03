@@ -1,21 +1,19 @@
 module Main where
 
-import Control.Monad
-import Control.Monad.Trans
-import System.Console.Haskeline
-import Text.Megaparsec.Error
+import           LispVal
+import           Parser
 
-import Syntax
-import Parser
-import Eval
-import Exception
+import           Control.Monad
+import           Control.Monad.Trans
+import qualified Data.Text                as T
+import           System.Console.Haskeline
+import           Text.Megaparsec.Error
 
-getAst :: String -> IO (ThrowsException LispVal)
-getAst line = return $ parseExpr line
-
-process :: String -> IO ()
+process :: T.Text -> IO ()
 process line =
-  putStrLn $ trapException $ parseExpr line >>= eval
+  case readExpr line of
+    Left err -> putStrLn err
+    Right ast -> print ast
 
 main :: IO ()
 main = runInputT defaultSettings loop
@@ -23,5 +21,5 @@ main = runInputT defaultSettings loop
       loop = do
         minput <- getInputLine "wyas> "
         case minput of
-          Nothing -> outputStrLn "Goodbye."
-          Just input -> liftIO (process input) >> loop
+          Nothing    -> outputStrLn "Goodbye."
+          Just input -> liftIO (process $ T.pack input) >> loop

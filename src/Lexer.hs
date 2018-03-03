@@ -3,15 +3,16 @@
 
 module Lexer where
 
-import Control.Applicative
-import Data.Void
-import Data.Functor.Identity
-import Text.Megaparsec
-import Text.Megaparsec.Char
-import Text.Megaparsec.Expr
+import           Control.Applicative
+import           Data.Functor.Identity
+import qualified Data.Text as T
+import           Data.Void
+import           Text.Megaparsec
+import           Text.Megaparsec.Char
 import qualified Text.Megaparsec.Char.Lexer as L
+import           Text.Megaparsec.Expr
 
-type Parser = Parsec Void String
+type Parser = Parsec Void T.Text
 
 sc :: Parser ()
 sc = L.space space1 lineCmnt blockCmnt
@@ -25,6 +26,9 @@ lexeme = L.lexeme sc
 symbol :: Parser Char
 symbol = oneOf ("!$%&|*+-/:<=>?@^_~" :: String)
 
+parens :: Parser a -> Parser a
+parens = between (char '(') (char ')')
+
 escapedChars :: Parser Char
 escapedChars = do
   char '\\'                -- a backslash
@@ -36,6 +40,12 @@ escapedChars = do
     'r'   -> '\r'
     't'   -> '\t'
     _     -> x
+
+identifier :: Parser T.Text
+identifier = do
+  first <- letterChar <|> symbol
+  rest <- many (letterChar <|> digitChar <|> symbol)
+  return $ T.pack $ first:rest
 
 integer :: Parser Integer
 integer = lexeme $ (char '#' >> char 'd' >> L.decimal) <|> L.decimal

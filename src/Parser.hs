@@ -1,36 +1,42 @@
-module Parser where
+{-# LANGUAGE FlexibleContexts #-}
 
-import Control.Monad.Trans.Except
-import Control.Applicative
-import Text.Megaparsec
-import Text.Megaparsec.Char
+module Parser
+  ( readExpr
+  , readExprFile
+  , SourceName)
+  where
 
-import Syntax
-import Exception
-import Lexer
+import           Lexer
+import           LispVal
+
+import           Control.Applicative
+import           Control.Monad.Trans.Except
+import qualified Data.Text                  as T
+import           Data.Void
+import           Text.Megaparsec
+import           Text.Megaparsec.Char
+
+type SourceName = String
 
 stringP :: Parser LispVal
 stringP = do
   char '"'
   x <- many $ escapedChars <|> noneOf ("\"\\" :: String)
   char '"'
-  return $ String x
+  return $ String $ T.pack x
 
 atomP :: Parser LispVal
 atomP = do
-  first <- letterChar <|> symbol
-  rest <- many (letterChar <|> digitChar <|> symbol)
-  let atom' = first:rest
-  return $ case atom' of
+  i <- identifier
+  return $ case i of
     "#t" -> Bool True
     "#f" -> Bool False
-    _    -> Atom atom'
+    _    -> Atom i
 
 characterP :: Parser LispVal
 characterP = do
   _ <- try $ string "#\\"
-  value <- try (string "newline" <|> string "space")
-         <|> do { x <- anyChar; notFollowedBy alphaNumChar ; return [x] }
+  value <- do { x <- anyChar; notFollowedBy alphaNumChar ; return [x] }
   return $ Character $ case value of
     "space"   -> ' '
     "newline" -> '\n'
@@ -57,49 +63,27 @@ boolP = do
   char '#'
   (char 't' >> return (Bool True)) <|> (char 'f' >> return (Bool False))
 
-listP :: Parser LispVal
-listP = fmap List $ exprP `sepBy` sc
+manyLispVal :: Parser [LispVal]
+manyLispVal = lispVal `sepBy` sc
 
-dottedListP :: Parser LispVal
-dottedListP = do
-  h <- exprP `endBy` sc
-  t <- char '.' >> sc >> exprP
-  return $ DottedList h t
+listP :: Parser LispVal
+listP = List <$> parens manyLispVal
 
 quotedP :: Parser LispVal
 quotedP = do
   char '\''
-  x <- exprP
+  x <- lispVal
   return $ List [Atom "quote", x]
 
-quasiQuoted :: Parser LispVal
-quasiQuoted = do
-  char '`'
-  x <- exprP
-  return $ List [Atom "quasiquote", x]
-
-unQuoteP :: Parser LispVal
-unQuoteP = do
-  char ','
-  x <- exprP
-  return $ List [Atom "unquote", x]
-
-exprP :: Parser LispVal
-exprP = atomP
+lispVal :: Parser LispVal
+lispVal = atomP
    <|> stringP
    <|> try floatP
-   <|> try negativeNumberP
    <|> try numberP
    <|> try boolP
    <|> try characterP
    <|> quotedP
-   <|> quasiQuoted
-   <|> unQuoteP
-   <|> do
-      char '('
-      x <- try listP <|> dottedListP
-      char ')'
-      return x
+   <|> listP
 
 contents :: Parser a -> Parser a
 contents p = do
@@ -108,8 +92,13 @@ contents p = do
   eof
   return r
 
-parseExpr :: String -> ThrowsException LispVal
-parseExpr s = case runParser (contents exprP) "<stdin>" s of
-  Left err -> throwE $ ParserE err
-  Right val -> return val
+parseUnpack :: Either (ParseError Char Void) LispVal -> Either String LispVal
+parseUnpack err = case err of
+  Left err  -> Left $ parseErrorPretty err
+  Right ast -> Right ast
 
+readExpr :: T.Text -> Either String LispVal
+readExpr = parseUnpack . runParser (contents lispVal) "<stdin>"
+
+readExprFile :: SourceName -> T.Text -> Either String LispVal
+readExprFile source = parseUnpack . runParser (contents (List <$> manyLispVal)) source
