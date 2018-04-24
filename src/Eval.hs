@@ -6,6 +6,7 @@ module Eval where
 
 import           LispVal
 import           Parser
+import           Prim
 
 import           Data.Map             as Map
 import           Data.Monoid
@@ -17,7 +18,7 @@ import           Control.Monad.Reader
 
 basicEnv :: EnvCtx
 basicEnv = Map.fromList $ primEnv
-  <> [ ("read", Fun $ IFunc $ unop $ readFn)
+  <> [ ("read", Fun $ IFunc $ unop readFn)
      , ("parse", Fun $ IFunc $ unop parseFn)]
 
 readFn :: LispVal -> Eval LispVal
@@ -30,7 +31,7 @@ parseFn val = throw $ TypeMismatch "parse expects string, instead got: " val
 
 evalFile :: FilePath -> T.Text -> IO () -- program file
 evalFile filePath fileExpr =
-  (runASTinEnv basicEnv $ fileToEvalForm filePath fileExpr) >>= print
+  runASTinEnv basicEnv (fileToEvalForm filePath fileExpr) >>= print
 
 fileToEvalForm :: FilePath -> T.Text -> Eval LispVal
 fileToEvalForm filePath input =
@@ -40,9 +41,27 @@ runParseTest :: T.Text -> T.Text
 runParseTest input =
   either (T.pack . show) (T.pack . show) $ readExpr input
 
+safeExec :: IO a -> IO (Either String a)
+safeExec m = do
+  result <- Control.Exception.try m
+  case result of
+    Left (eTop :: SomeException) ->
+      case fromException eTop of
+        Just (enclosed :: LispException) -> return $ Left (show enclosed)
+        Nothing                          -> return $ Left (show eTop)
+    Right val -> return $ Right val
+
 runASTinEnv :: EnvCtx -> Eval b -> IO b
 runASTinEnv code action =
   runReaderT (unEval action) code
+
+textToEvalForm :: T.Text -> Eval LispVal
+textToEvalForm input = either (throw . PError . show) evalBody $ readExpr input
+
+evalText :: T.Text -> IO ()
+evalText textExpr = do
+  res <- runASTinEnv basicEnv $ textToEvalForm textExpr
+  print res
 
 lineToEvalForm :: T.Text -> Eval LispVal
 lineToEvalForm input =
@@ -112,6 +131,16 @@ eval (List [Atom "lambda", List params, expr]) = do
   envLocal <- ask
   return  $ Lambda (IFunc $ applyLambda expr params) envLocal
 eval (List (Atom "lambda":_) ) = throw $ BadSpecialForm "lambda function expects list of parameters and S-Expression body\n(lambda <params> <s-expr>)"
+
+eval all@(List ((:) x xs)) = do
+  env <- ask
+  funVar <- eval x
+  case funVar of
+    (Fun (IFunc internalFn)) -> mapM eval xs >>= internalFn
+    (Lambda (IFunc definedFn) boundenv) -> local (const (boundenv <> env)) $ definedFn xs
+    _ -> throw $ NotFunction funVar
+
+eval x = throw $ Default x -- fall through
 
 evalBody :: LispVal -> Eval LispVal
 -- (define var expr rest)

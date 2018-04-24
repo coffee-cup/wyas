@@ -14,12 +14,9 @@ module LispVal
 import qualified Data.Map             as Map
 import qualified Data.Text            as T
 import           Data.Typeable        (Typeable)
-import           Data.Void
 
 import           Control.Exception
 import           Control.Monad.Reader
-
-import           Text.Megaparsec
 
 type EnvCtx = Map.Map T.Text LispVal
 
@@ -43,7 +40,7 @@ instance Show LispVal where
   show = T.unpack . showVal
 
 data IFunc = IFunc { fn :: [LispVal] -> Eval LispVal }
-  deriving (Typeable)
+deriving (Typeable)
 
 instance Eq IFunc where
   (==) _ _ = False
@@ -79,6 +76,11 @@ data LispException
   | IOError T.Text
   deriving (Typeable)
 
+instance Exception LispException
+
+instance Show LispException where
+  show = T.unpack . showError
+
 showError :: LispException -> T.Text
 showError err =
   case err of
@@ -90,5 +92,5 @@ showError err =
     (BadSpecialForm txt)     -> T.concat ["Error Bad Special Form: ", txt]
     (NotFunction val)        -> T.concat ["Error Not a Function: ", showVal val]
     (UnboundVar txt)         -> T.concat ["Error Unbound Variable: ", txt]
-    (PError txt)             -> T.concat ["Parser Error, expression cannot evaluate: ", T.pack $ txt]
+    (PError txt)             -> T.concat ["Parser Error, expression cannot evaluate: ", T.pack txt]
     (Default val)            -> T.concat ["Error, Danger Will Robinson! Evaluation could not proceed!  ", showVal val]
