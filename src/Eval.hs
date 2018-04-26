@@ -89,7 +89,6 @@ extractVar n           = throw $ TypeMismatch "expected an atomic value" n
 
 eval :: LispVal -> Eval LispVal
 eval val@(String _)             = return val
-eval val@(Atom _)               = return val
 eval val@(Number _)             = return val
 eval val@(Float _)              = return val
 eval val@(Bool _)               = return val
