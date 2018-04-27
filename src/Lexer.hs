@@ -4,13 +4,11 @@
 module Lexer where
 
 import           Control.Applicative
-import           Data.Functor.Identity
 import qualified Data.Text as T
 import           Data.Void
 import           Text.Megaparsec
 import           Text.Megaparsec.Char
 import qualified Text.Megaparsec.Char.Lexer as L
-import           Text.Megaparsec.Expr
 
 type Parser = Parsec Void T.Text
 

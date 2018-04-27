@@ -12,6 +12,7 @@ import           System.IO
 
 import           Control.Exception    hiding (handle)
 import           Control.Monad.Except
+import           Network.HTTP
 
 type Prim = [(T.Text, LispVal)]
 type Unary = LispVal -> Eval LispVal
@@ -42,8 +43,11 @@ primEnv = [   ("+"     , mkF $ binopFold (numOp    (+))  (Number 0) )
             , ("cons"  , mkF   Prim.cons)
             , ("cdr"   , mkF   Prim.cdr)
             , ("car"   , mkF   Prim.car)
+            , ("quote" , mkF quote)
             , ("file?" , mkF $ unop  fileExists)
             , ("slurp" , mkF $ unop  slurp)
+            , ("wslurp", mkF $ unop wSlurp)
+            , ("put", mkF $ binop put)
             ]
 
 unop :: Unary -> [LispVal] -> Eval LispVal
@@ -75,6 +79,16 @@ wFileSlurp :: T.Text -> IO LispVal
 wFileSlurp fileName = withFile (T.unpack fileName) ReadMode go
   where go = readTextFile fileName
 
+openURL :: T.Text -> IO LispVal
+openURL x = do
+  req <- simpleHTTP (getRequest $ T.unpack x)
+  body <- getResponseBody req
+  return $ String $ T.pack body
+
+wSlurp :: LispVal -> Eval LispVal
+wSlurp (String txt) = liftIO $ openURL txt
+wSlurp val = throw $ TypeMismatch "wSlurp expects a string, instead got: " val
+
 readTextFile :: T.Text -> Handle -> IO LispVal
 readTextFile fileName handle = do
   exists <- hIsEOF handle
@@ -82,11 +96,28 @@ readTextFile fileName handle = do
   then fmap String (TIO.hGetContents handle)
   else throw $ IOError $ T.concat [" file does not exist: ", fileName]
 
+put :: LispVal -> LispVal -> Eval LispVal
+put (String file) (String msg) = liftIO $ wFilePut file msg
+put (String _) val = throw $ TypeMismatch "put expects string in the second argument (try using show), instead got: " val
+put val _ = throw $ TypeMismatch "put expects string, instead got: " val
+
+wFilePut :: T.Text -> T.Text -> IO LispVal
+wFilePut fileName msg = withFile (T.unpack fileName) WriteMode go
+  where go = putTextFile fileName msg
+
+putTextFile :: T.Text -> T.Text -> Handle -> IO LispVal
+putTextFile fileName msg handle = do
+  canWrite <- hIsWritable handle
+  if canWrite
+  then TIO.hPutStr handle msg >> return (String msg)
+  else throw $ IOError $ T.concat [" file does not exist: ", fileName]
+
 -- Lisp Comprehension
 
 cons :: [LispVal] -> Eval LispVal
 cons [x, y@(List yList)] = return $ List $ x:yList
 cons [c]                 = return $ List [c]
+cons [x, y]              = return $ List [x, y]
 cons []                  = return $ List []
 cons _=                  throw $ ExpectedList "cons, in second argument"
 
@@ -101,6 +132,11 @@ cdr [List (x:xs)] = return $ List xs
 cdr [List []]     = return Nil
 cdr []            = return Nil
 cdr x             = throw $ ExpectedList "cdr"
+
+quote :: [LispVal] -> Eval LispVal
+quote [List xs] = return $ List $ Atom "quote" : xs
+quote [exp]     = return $ List $ Atom "quote" : [exp]
+quote args      = throw $ NumArgs 1 args
 
 -- Unary and Binary Function Handlers
 

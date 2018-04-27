@@ -10,7 +10,6 @@ import           Lexer
 import           LispVal
 
 import           Control.Applicative
-import           Control.Monad.Trans.Except
 import qualified Data.Text                  as T
 import           Data.Void
 import           Text.Megaparsec
@@ -88,7 +87,7 @@ lispVal = atomP
 contents :: Parser a -> Parser a
 contents p = do
   sc
-  r <- p
+  r <- try p
   eof
   return r
 
@@ -98,7 +97,7 @@ parseUnpack err = case err of
   Right ast -> Right ast
 
 readExpr :: T.Text -> Either String LispVal
-readExpr = parseUnpack . runParser (contents lispVal) "<stdin>"
+readExpr = parseUnpack . runParser (contents lispVal) "<stdin>" . T.strip
 
 readExprFile :: SourceName -> T.Text -> Either String LispVal
-readExprFile source = parseUnpack . runParser (contents (List <$> manyLispVal)) source
+readExprFile source = parseUnpack . runParser (contents (List <$> manyLispVal)) source . T.strip
