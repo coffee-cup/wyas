@@ -1,4 +1,4 @@
-module Main where
+module Cli where
 
 import           Data.Text.IO        as TIO
 import           Eval
@@ -32,8 +32,8 @@ schemeEntryPoint :: LineOpts -> IO ()
 schemeEntryPoint UseReplLineOpts            = Repl.mainLoop --repl
 schemeEntryPoint (RunScriptLineOpts script) = runScript script
 
-main :: IO ()
-main = execParser opts >>= schemeEntryPoint
+cliIFace :: IO ()
+cliIFace = execParser opts >>= schemeEntryPoint
   where
     opts = info (helper <*> parseLineOpts)
       ( fullDesc

@@ -1,5 +1,5 @@
 name:                wyas
-version:             0.1.0.0
+version:             0.1
 -- synopsis:
 -- description:
 homepage:            https://github.com/coffee-cup/wyas#readme
@@ -13,10 +13,16 @@ build-type:          Simple
 cabal-version:       >=1.10
 extra-source-files:  README.md
 
-executable wyas
+library
   hs-source-dirs:      src
-  main-is:             Main.hs
-  other-modules:       LispVal, Lexer, Parser, Eval, Prim, Repl
+  exposed-modules:
+                  LispVal,
+                  Lexer,
+                  Parser,
+                  Eval,
+                  Prim,
+                  Repl,
+                  Cli
   default-language:    Haskell2010
   ghc-options:
               -fno-warn-unused-do-bind
@@ -54,3 +60,21 @@ executable wyas
                      OverloadedStrings,
                      FlexibleContexts,
                      GeneralizedNewtypeDeriving
+
+executable wyas
+                main-is: Main.hs
+                build-depends:
+                              base >= 4.8 && < 5,
+                              wyas
+                hs-source-dirs: exec
+                default-language: Haskell2010
+
+test-Suite test
+           type: exitcode-stdio-1.0
+           main-is: Spec.hs
+           hs-source-dirs: test-hs
+           default-language: Haskell2010
+           build-depends:
+                base         >= 4.8 && < 5.0,
+                text         >= 1.2 && <1.3,
+                hspec        >= 2.4 && < 2.5
