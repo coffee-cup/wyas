@@ -104,15 +104,12 @@ main = do
     runExpr Nothing "test/define_lambda.scm" $ String "smalltalk"
     runExpr Nothing "test/test_evalargs.scm" $ Number 1558
     runExpr Nothing "test/test_fix.scm"      $ Number 3628800
-    --runExpr Nothing "test/test_fix2.scm"      $ Number 5040
 
   hspec $ describe "build can proceed w/o these passing" $ do
     tExpr "(extra) begin/define" "begin (define x 1) (define y (+ x 10)) (+ x y)"
           $ Number 12
-    tExprStd "(extra) fold call w/ append"  "(fold string-append \"Y\" '(\"com\" \"bin\" \"a\" \"tor\"))"
-          $ String "Ycombinator"
-
-
+    -- tExprStd "(extra) fold call w/ append"  "(fold string-append \"Y\" '(\"com\" \"bin\" \"a\" \"tor\"))"
+    --       $ String "Ycombinator"
 
 -- helper functions
 -- run file w/ stdlib
