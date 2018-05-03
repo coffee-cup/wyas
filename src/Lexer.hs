@@ -16,7 +16,7 @@ sc :: Parser ()
 sc = L.space space1 lineCmnt blockCmnt
   where
     lineCmnt  = L.skipLineComment ";"
-    blockCmnt = empty
+    blockCmnt = L.skipBlockComment "{-" "-}"
 
 lexeme :: Parser a -> Parser a
 lexeme = L.lexeme sc

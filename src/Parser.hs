@@ -1,10 +1,11 @@
 {-# LANGUAGE FlexibleContexts #-}
 
-module Parser
-  ( readExpr
-  , readExprFile
-  , SourceName)
-  where
+module Parser where
+-- module Parser
+--   ( readExpr
+--   , readExprFile
+--   , SourceName)
+--   where
 
 import           Lexer
 import           LispVal
@@ -47,6 +48,12 @@ negativeNumberP = do
   i <- integer
   return $ Number (-1 * i)
 
+positiveNumberP :: Parser LispVal
+positiveNumberP = do
+  char '+'
+  i <- integer
+  return $ Number i
+
 numberP :: Parser LispVal
 numberP = do
   i <- try integer <|> try hexadecimal <|> try octal
@@ -75,19 +82,21 @@ quotedP = do
   return $ List [Atom "quote", x]
 
 lispVal :: Parser LispVal
-lispVal = atomP
-   <|> stringP
-   <|> try floatP
-   <|> try numberP
-   <|> try boolP
-   <|> try characterP
-   <|> quotedP
-   <|> listP
+lispVal = numberP
+  <|> try positiveNumberP
+  <|> try negativeNumberP
+  <|> floatP
+  <|> boolP
+  <|> characterP
+  <|> atomP
+  <|> stringP
+  <|> quotedP
+  <|> listP
 
 contents :: Parser a -> Parser a
 contents p = do
   sc
-  r <- try p
+  r <- try $ lexeme p
   eof
   return r
 

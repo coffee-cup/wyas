@@ -8,10 +8,10 @@ import           LispVal
 import           Parser
 import           Prim
 
-import           Data.Map              as Map
+import           Data.Map             as Map
 import           Data.Monoid
-import qualified Data.Text             as T
-import qualified Data.Text.IO          as TIO
+import qualified Data.Text            as T
+import qualified Data.Text.IO         as TIO
 import           System.Directory
 
 import           Control.Exception
@@ -155,10 +155,10 @@ eval (List [Atom "define", varExpr, expr]) = do
   local (const $ Map.insert (extractVar varAtom) evalVal env) $ return varExpr
 
 eval (List [Atom "let", List pairs, expr]) = do
-  env <- ask
+  env   <- ask
   atoms <- mapM ensureAtom $ getEven pairs
-  vals <- mapM eval $ getOdd pairs
-  local (const (Map.fromList (zipWith (\a b -> (extractVar a, b)) atoms vals) <> env))  $ evalBody expr
+  vals  <- mapM eval       $ getOdd  pairs
+  local (const (Map.fromList (zipWith (\a b -> (extractVar a, b)) atoms vals) <> env)) $ evalBody expr
 eval (List (Atom "let":_) ) = throw $ BadSpecialForm "let function expects list of parameters and S-Expression body\n(let <pairs> <s-expr>)"
 
 eval (List [Atom "lambda", List params, expr]) = do
@@ -183,13 +183,14 @@ eval all@(List [Atom "car", arg@(List (x:xs))]) =
     _      -> return x
 
 eval all@(List ((:) x xs)) = do
-  env <- ask
+  env    <- ask
   funVar <- eval x
   xVal <- mapM eval xs
+  --liftIO $ TIO.putStr $ T.concat ["eval:\n  ", T.pack $ show all,"\n  * fnCall:  ", T.pack $ show x, "\n  * fnVar  ", T.pack $ show funVar,"\n  * args:  ",T.concat (T.pack . show <$> xVal)    ,T.pack "\n"]
   case funVar of
-    (Fun (IFunc internalFn)) -> internalFn xVal
-    (Lambda (IFunc definedFn) boundenv) -> local (const (boundenv <> env)) $ definedFn xs
-    _ -> throw $ NotFunction funVar
+      (Fun (IFunc internalFn)) -> internalFn xVal
+      (Lambda (IFunc definedFn) boundenv) -> local (const (boundenv <> env)) $ definedFn xVal
+      _ -> throw $ NotFunction funVar
 
 eval x = throw $ Default x -- fall through
 
@@ -205,6 +206,7 @@ evalBody (List ((:) (List ((:) (Atom "define") [Atom var, defExpr])) rest)) = do
   env <- ask
   let envFn = const $ Map.insert var evalVal env
   local envFn $ evalBody $ List rest
+
 evalBody x = eval x
 
 getEven :: [t] -> [t]
@@ -218,6 +220,11 @@ getOdd (x:xs) = getEven xs
 applyLambda :: LispVal -> [LispVal] -> [LispVal] -> Eval LispVal
 applyLambda expr params args = do
   env <- ask
-  argEval <- mapM eval args
-  let env' = Map.fromList (Prelude.zipWith (\a b -> (extractVar a,b)) params argEval) <> env
-  local (const env') $ eval expr
+  local (const ((Map.fromList (zipWith (\a b -> (extractVar a,b)) params args)) <> env)) $ eval expr
+
+-- applyLambda :: LispVal -> [LispVal] -> [LispVal] -> Eval LispVal
+-- applyLambda expr params args = do
+--   env <- ask
+--   argEval <- mapM eval args
+--   let env' = Map.fromList (Prelude.zipWith (\a b -> (extractVar a,b)) params argEval) <> env
+--   local (const env') $ eval expr

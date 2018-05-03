@@ -1,14 +1,14 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Main (main) where
 
-import LispVal
-import Parser
-import Eval
+import           Eval
+import           LispVal
+import           Parser
 
-import qualified Data.Text as T
+import qualified Data.Text        as T
 
-import Test.Hspec
-import System.IO.Unsafe
+import           System.IO.Unsafe
+import           Test.Hspec
 
 main :: IO ()
 main = do
@@ -36,7 +36,7 @@ main = do
       readExpr "#f" `shouldBe` (Right $ Bool False)
 
     it "Nil" $
-      readExpr "'()" `shouldBe` (Right $ Nil)
+      readExpr "'()" `shouldBe` (Right $ List [Atom "quote", List []])
 
     it "S-Expr: homogenous list" $
       readExpr "(2 1 87)" `shouldBe`
@@ -75,10 +75,13 @@ main = do
     it "S-Expr: nested list" $
       readExpr "(lambda (x x) (+ x x))" `shouldBe`
       (Right $ List [Atom "lambda", List [Atom "x", Atom "x"], List [Atom "+", Atom "x", Atom "x"]])
-    it "Comment: end-of/single line" $
-      readExpr ";skip\nartoodetoo ;extra will throw\n;skip" `shouldBe` (Right $ Atom "artoodetoo")
-    it "Comment: multi-line line" $
-      readExpr "{-Han\nShot\nFirst\n-} (c3 {- these are not the droids you're looking for-} po)\n {-Jar Jar Binks =?= Sith Lord -}" `shouldBe` (Right $ List [Atom "c3",Atom "po"])
+
+    -- No comments :/
+    -- it "Comment: end-of/single line" $
+    --   readExpr ";skip\nartoodetoo ;extra will throw\n;skip" `shouldBe` (Right $ Atom "artoodetoo")
+
+    -- it "Comment: multi-line line" $
+    --   readExpr "{-Han\nShot\nFirst\n-} (c3 {- these are not the droids you're looking for-} po)\n {-Jar Jar Binks =?= Sith Lord -}" `shouldBe` (Right $ List [Atom "c3",Atom "po"])
 
   hspec $ describe "src/Eval.hs" $ do
     wStd "test/add.scm"              $ Number 3
@@ -122,7 +125,6 @@ tExpr note expr val =
     it (T.unpack note) $ evalVal `shouldBe` val
     where evalVal = (unsafePerformIO $ runASTinEnv basicEnv $ fileToEvalForm "" expr)
 
-
 runExpr :: Maybe T.Text -> T.Text -> LispVal -> SpecWith ()
 runExpr  std file val =
     it (T.unpack file) $ evalVal  `shouldBe` val
@@ -147,4 +149,5 @@ tExprStd note  expr  val =
 evalExprTest ::  T.Text -> IO LispVal --REPL
 evalExprTest expr = do
   stdlib <- getFileContents $ T.unpack  "test/stdlib_mod.scm"
-runASTinEnv basicEnv $ textToEvalForm stdlib expr
+  runASTinEnv basicEnv $ textToEvalForm stdlib expr
+
