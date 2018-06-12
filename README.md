@@ -1,6 +1,8 @@
 # write you a scheme
 
-A very basic Scheme implementation in Haskell. Heavily based on [Part 1](https://en.wikibooks.org/wiki/Write_Yourself_a_Scheme_in_48_Hours) and [Part 2](https://wespiser.com/writings/wyas/home.html)
+A very basic Scheme implementation in Haskell. Heavily based on [Part 1](https://en.wikibooks.org/wiki/Write_Yourself_a_Scheme_in_48_Hours) and [Part 2](https://wespiser.com/writings/wyas/home.html).
+
+There is a [standard library](https://github.com/coffee-cup/wyas/blob/master/lib/stdlib.scm) that defines a lot of useful functions.
 
 ## Compiling
 
